@@ -32,6 +32,12 @@ class Window(QMainWindow):
         self.haveCameraToolBar = False
         self.continueTimer = False
 
+        self.colorTH = Thread(self)
+        self.depthTH = Thread(self)
+
+        self.shouldBeColor = False
+        self.shouldBeDepth = False
+
         self.save_path = r"C:\Users\cie3\Desktop"
 
         #Creating a MenuBar
@@ -85,9 +91,9 @@ class Window(QMainWindow):
         self.setWindowTitle("Color Camera Window")
 
         #Create a centrel Label
-        self.label_show = QLabel("Color Window")
-        self.label_show.setGeometry(QRect(10, 0, 640, 480))
-        self.setCentralWidget(self.label_show)
+        self.Colorlabel_show = QLabel("Color Window")
+        self.Colorlabel_show.setGeometry(QRect(10, 0, 640, 480))
+        self.setCentralWidget(self.Colorlabel_show)
 
         self.open_colorCamera()
 
@@ -100,9 +106,9 @@ class Window(QMainWindow):
         self.setWindowTitle("Depth Camera Window")
 
         #Create a centrel Label
-        self.label_show = QLabel("Depth Window")
-        self.label_show.setGeometry(QRect(10, 0, 640, 480))
-        self.setCentralWidget(self.label_show)
+        self.Depthlabel_show = QLabel("Depth Window")
+        self.Depthlabel_show.setGeometry(QRect(10, 0, 640, 480))
+        self.setCentralWidget(self.Depthlabel_show)
 
         self.open_depthCamera()
         
@@ -181,41 +187,43 @@ class Window(QMainWindow):
         self.setCentralWidget(self.horizontalGroupBox)
 
     def open_colorCamera(self):
-        self.beenToDepthCamera = True
-        self.available_cameras = QCameraInfo.availableCameras()
+        if(self.depthTH.isRunning()):
+            self.depthTH.changePixmap.disconnect()
 
-        if not self.available_cameras:
-            sys.exit()
-
-        self.viewfinder = QCameraViewfinder()
-        self.viewfinder.show()
-        self.setCentralWidget(self.viewfinder)
-
-        self.camera = QCamera(self.available_cameras[0])
-        self.camera.setViewfinder(self.viewfinder)
-        self.camera.setCaptureMode(QCamera.CaptureVideo)
-        self.camera.start()
-
+        self.shouldBeColor = True
+        self.shouldBeDepth = False
+        self.colorCamera_label = QLabel(self)
+        self.depthCamera_label = QLabel(self)
+        self.setCentralWidget(self.colorCamera_label)
+        self.colorTH = Thread(self)
+        self.colorTH.setCamera(0)
+        self.colorTH.changePixmap.connect(self.setImage)
+        self.colorTH.start()
+        self.show()
 
     def open_depthCamera(self):
-        self.available_cameras = QCameraInfo.availableCameras()
+        if(self.colorTH.isRunning()):
+            self.colorTH.changePixmap.disconnect()
 
-        if not self.available_cameras:
-            sys.exit()
-
-        self.camera = QCamera(self.available_cameras[1])
-
-        self.video_label = QLabel(self)
-        self.setCentralWidget(self.video_label)
-        th = Thread(self)
-        th.changePixmap.connect(self.setImage)
-        th.start()
+        self.shouldBeColor = False
+        self.shouldBeDepth = True
+        self.colorCamera_label = QLabel(self)
+        self.depthCamera_label = QLabel(self)
+        self.setCentralWidget(self.depthCamera_label)
+        self.depthTH.setCamera(1)
+        self.depthTH.changePixmap.connect(self.setImage)
+        self.depthTH.start()
         self.show()
 
     @pyqtSlot(QImage)
     def setImage(self, image):
-        if not sip.isdeleted(self.video_label):
-            self.video_label.setPixmap(QPixmap.fromImage(image))
+        if not sip.isdeleted(self.colorCamera_label):
+            if(self.shouldBeColor):
+                self.colorCamera_label.setPixmap(QPixmap.fromImage(image))
+
+        if not sip.isdeleted(self.depthCamera_label):
+            if(self.shouldBeDepth):
+                self.depthCamera_label.setPixmap(QPixmap.fromImage(image))
 
     def createCameraButtons(self):
         self.haveCameraToolBar = True
@@ -252,42 +260,82 @@ class Window(QMainWindow):
 class Thread(QThread):
     changePixmap = pyqtSignal(QImage)
 
+    def __init__(self, parent=None):
+        """Initializer."""
+        super().__init__(parent)
+        
+        self.cameraValue = 0
+
     def run(self):
         self.pipeline = rs.pipeline()
-        config = rs.config()
+        self.config = rs.config()
         
-        pipeline_wrapper = rs.pipeline_wrapper(self.pipeline)
-        pipeline_profile = config.resolve(pipeline_wrapper)
-        device = pipeline_profile.get_device()
-        device_product_line = str(device.get_info(rs.camera_info.product_line))
+        # pipeline_wrapper = rs.pipeline_wrapper(self.pipeline)
+        # pipeline_profile = config.resolve(pipeline_wrapper)
+        # device = pipeline_profile.get_device()
+        # device_product_line = str(device.get_info(rs.camera_info.product_line))
 
-        config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
+        if(self.cameraValue == 0):
+            self.config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
+            self.isEnabled = True
 
-        self.pipeline.start(config)
+            self.pipeline.start(self.config)
 
-        try:
-            while True:
-                frames = self.pipeline.wait_for_frames()
-                depth_frame = frames.get_depth_frame()
+            try:
+                while True:
+                    frames = self.pipeline.wait_for_frames()
+                    color_frame = frames.get_color_frame()
 
-                if not depth_frame:
-                    continue
+                    if not color_frame:
+                        continue
 
-                depth_image = np.asanyarray(depth_frame.get_data())
+                    color_image = np.asanyarray(color_frame.get_data())
 
-                depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.03), cv2.COLORMAP_JET)
+                    h, w, ch = color_image.shape
+                    bytesPerLine = ch * w
+                    convertToQtFormat = QImage(color_image.data, w, h, bytesPerLine, QImage.Format_BGR888)
+                    p = convertToQtFormat.scaled(800, 480)
+                    self.changePixmap.emit(p)
 
-                h, w, ch = depth_colormap.shape
-                bytesPerLine = ch * w
-                convertToQtFormat = QImage(depth_colormap.data, w, h, bytesPerLine, QImage.Format_BGR888)
-                p = convertToQtFormat.scaled(800, 480)
-                self.changePixmap.emit(p)
+            except RuntimeError:
+                print('')
 
-        except RuntimeError:
-            print('')
+            finally:
+                self.pipeline.stop()
 
-        finally:
-            self.pipeline.stop()
+        elif(self.cameraValue == 1):
+            self.config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
+            self.isEnabled = True
+
+            self.pipeline.start(self.config)
+
+            try:
+                while True:
+                    frames = self.pipeline.wait_for_frames()
+                    depth_frame = frames.get_depth_frame()
+
+                    if not depth_frame:
+                        continue
+
+                    depth_image = np.asanyarray(depth_frame.get_data())
+
+                    depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.03), cv2.COLORMAP_JET)
+
+                    h, w, ch = depth_colormap.shape
+                    bytesPerLine = ch * w
+                    convertToQtFormat = QImage(depth_colormap.data, w, h, bytesPerLine, QImage.Format_BGR888)
+                    p = convertToQtFormat.scaled(800, 480)
+                    self.changePixmap.emit(p)
+
+            except RuntimeError:
+                print('')
+
+            finally:
+                self.pipeline.stop()
+
+
+    def setCamera(self, value):
+        self.cameraValue = value
 
 
 if __name__ == "__main__":
