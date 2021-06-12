@@ -125,7 +125,7 @@ class Window(QMainWindow):
     def _createClockWindow(self):
         self.setWindowTitle('Clock Window')
 
-        font = QFont('Maax', 100, QFont.Bold)
+        font = QFont('Maax', 75, QFont.Bold)
 
         self.label = QLabel()
         self.label.setAlignment(Qt.AlignCenter)
