@@ -3,7 +3,7 @@ import os
 import numpy as np
 import cv2
 from PyQt5 import sip
-import pyrealsense2 as rs
+import pyrealsense2.pyrealsense2 as rs
 
 from PyQt5.QtCore import Qt, QRect
 from PyQt5.QtWidgets import (QAction, QApplication, QGridLayout,
@@ -38,7 +38,8 @@ class Window(QMainWindow):
         self.shouldBeColor = False
         self.shouldBeDepth = False
 
-        self.save_path = r"C:\Users\cie3\Desktop"
+        #self.save_path = r"C:\Users\cie3\Desktop"
+        self.save_path = r"~/Desktop"
 
         #Creating a MenuBar
         self._createMenuBar()
@@ -77,6 +78,8 @@ class Window(QMainWindow):
         self.depthCameraAction.triggered.connect(lambda: self._createDepthCameraWindow())
         self.clockAction = QAction('&Clock')
         self.clockAction.triggered.connect(lambda: self._createClockWindow())
+        self.updateAction = QAction('&Update')
+        self.updateAction.triggered.connect(lambda: self._updateSoftware())
 
     def _createHomeWindow(self):
         self.setWindowTitle("Home Window")
@@ -174,7 +177,7 @@ class Window(QMainWindow):
         #ThirdButton.addAction()
         clockButton.clicked.connect(self._createClockWindow)
         #settingsButton.addAction()
-        #updateButton.addAction()
+        updateButton.clicked.connect(self._updateSoftware)
 
         layout.addWidget(cameraButton, 0, 0)
         layout.addWidget(depthButton, 0, 2)
@@ -185,6 +188,9 @@ class Window(QMainWindow):
         
         self.horizontalGroupBox.setLayout(layout)
         self.setCentralWidget(self.horizontalGroupBox)
+
+    def _updateSoftware(self):
+        os.system("xterm -hold -e ./update.sh")
 
     def open_colorCamera(self):
         if(self.depthTH.isRunning()):
@@ -270,10 +276,14 @@ class Thread(QThread):
         self.pipeline = rs.pipeline()
         self.config = rs.config()
         
-        # pipeline_wrapper = rs.pipeline_wrapper(self.pipeline)
-        # pipeline_profile = config.resolve(pipeline_wrapper)
-        # device = pipeline_profile.get_device()
-        # device_product_line = str(device.get_info(rs.camera_info.product_line))
+        try:
+            pipeline_wrapper = rs.pipeline_wrapper(self.pipeline)
+            pipeline_profile = config.resolve(pipeline_wrapper)
+            device = pipeline_profile.get_device()
+            device_product_line = str(device.get_info(rs.camera_info.product_line))
+        except:
+            print("No camera connected")
+            sys.exit()
 
         if(self.cameraValue == 0):
             self.config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
