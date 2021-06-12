@@ -14,4 +14,4 @@ git pull https://github.com/alphathr33/BoatCamV2.git
 
 cd Code4Display
 chmod a+x update.sh
-sed -i 's/.from PyQt5 import sip/import sip/' BoatCamV2.py
+sed -i 's/from PyQt5 import sip/import sip/' BoatCamV2.py
