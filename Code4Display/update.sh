@@ -6,7 +6,7 @@ else
     echo "The network is down"
 fi
 
-ps -ef | grep "BoatCamV2.py" | awk '{print $2}' | xargs sudo kill
+ps -ef | grep "python BoatCamV2.py" | awk '{print $2}' | xargs sudo kill
 
 cd ~/Desktop/BoatCamV2
 
