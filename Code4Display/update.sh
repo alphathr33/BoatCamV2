@@ -11,3 +11,7 @@ cd ~/Desktop/BoatCamV2
 git reset --hard
 git clean -fd
 git pull https://github.com/alphathr33/BoatCamV2.git
+
+cd Code4Display
+
+sed -i 's/.from PyQt5 import sip/import sip' BoatCamV2.py
