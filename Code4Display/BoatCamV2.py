@@ -279,15 +279,15 @@ class Thread(QThread):
         self.config = rs.config()
 
         if(self.cameraValue == 0):
+            self.config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
+
+            self.isEnabled = True
+            
             try:
-                self.config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
+                self.pipeline.start(self.config)
             except:
                 print("No camera connected")
                 sys.exit()
-
-            self.isEnabled = True
-
-            self.pipeline.start(self.config)
 
             try:
                 while True:
@@ -298,6 +298,8 @@ class Thread(QThread):
                         continue
 
                     color_image = np.asanyarray(color_frame.get_data())
+
+                    color_image = cv2.cvtColor(color_image, cv2.COLOR_BGR2RGB)
 
                     h, w, ch = color_image.shape
                     bytesPerLine = ch * w
@@ -312,15 +314,15 @@ class Thread(QThread):
                 self.pipeline.stop()
 
         elif(self.cameraValue == 1):
-            try:
-                self.config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
-            except:
-                print("No camera connected")
-                sys.exit()
+            self.config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
             
             self.isEnabled = True
 
-            self.pipeline.start(self.config)
+            try:
+                self.pipeline.start(self.config)
+            except:
+                print("No camera connected")
+                sys.exit()
 
             try:
                 while True:
@@ -333,6 +335,7 @@ class Thread(QThread):
                     depth_image = np.asanyarray(depth_frame.get_data())
 
                     depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.03), cv2.COLORMAP_JET)
+                    depth_colormap = cv2.cvtColor(depth_colormap, cv2.COLOR_BGR2RGB)
 
                     h, w, ch = depth_colormap.shape
                     bytesPerLine = ch * w
