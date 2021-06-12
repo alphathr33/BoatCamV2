@@ -193,7 +193,6 @@ class Window(QMainWindow):
 
     def _updateSoftware(self):
         os.system("xterm -hold -e ./update.sh")
-        os.execv(sys.argv[0], sys.argv)
 
     def open_colorCamera(self):
         if(self.depthTH.isRunning()):
