@@ -301,7 +301,7 @@ class Thread(QThread):
 
                     h, w, ch = color_image.shape
                     bytesPerLine = ch * w
-                    convertToQtFormat = QImage(color_image.data, w, h, bytesPerLine, QImage.Format_BGR888)
+                    convertToQtFormat = QImage(color_image.data, w, h, bytesPerLine, QImage.Format_RGB888)
                     p = convertToQtFormat.scaled(800, 480)
                     self.changePixmap.emit(p)
 
@@ -336,7 +336,7 @@ class Thread(QThread):
 
                     h, w, ch = depth_colormap.shape
                     bytesPerLine = ch * w
-                    convertToQtFormat = QImage(depth_colormap.data, w, h, bytesPerLine, QImage.Format_BGR888)
+                    convertToQtFormat = QImage(depth_colormap.data, w, h, bytesPerLine, QImage.Format_RGB888)
                     p = convertToQtFormat.scaled(800, 480)
                     self.changePixmap.emit(p)
 
