@@ -220,6 +220,7 @@ class Window(QMainWindow):
         self.colorCamera_label = QLabel(self)
         self.depthCamera_label = QLabel(self)
         self.setCentralWidget(self.depthCamera_label)
+        self.depthTH = Thread(self)
         self.depthTH.setCamera(1)
         self.depthTH.changePixmap.connect(self.setImage)
         self.depthTH.start()
