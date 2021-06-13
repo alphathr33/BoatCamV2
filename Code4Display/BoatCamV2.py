@@ -361,14 +361,13 @@ class Thread(QThread):
             finally:
                 self.pipeline.stop()
 
-        def stop(self):
-            self.running = False
-            self.quit()
-            self.wait()
-
-
     def setCamera(self, value):
         self.cameraValue = value
+
+    def stop(self):
+        self.running = False
+        self.quit()
+        self.wait()
 
 
 if __name__ == "__main__":
