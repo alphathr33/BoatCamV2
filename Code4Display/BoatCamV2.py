@@ -100,9 +100,9 @@ class Window(QMainWindow):
         self.Colorlabel_show.setGeometry(QRect(10, 0, 640, 480))
         self.setCentralWidget(self.Colorlabel_show)
 
-        self.open_colorCamera()
-
         self.ExitStuff()
+
+        self.open_colorCamera()
 
         self.createCameraButtons()
 
@@ -114,10 +114,10 @@ class Window(QMainWindow):
         self.Depthlabel_show = QLabel("Depth Window")
         self.Depthlabel_show.setGeometry(QRect(10, 0, 640, 480))
         self.setCentralWidget(self.Depthlabel_show)
-
-        self.open_depthCamera()
         
         self.ExitStuff()
+
+        self.open_depthCamera()
 
         self.createCameraButtons()
       
@@ -197,6 +197,7 @@ class Window(QMainWindow):
     def open_colorCamera(self):
         if(self.depthTH.isRunning()):
             self.depthTH.changePixmap.disconnect()
+            self.depthTH.stop()
 
         self.shouldBeColor = True
         self.shouldBeDepth = False
@@ -212,6 +213,7 @@ class Window(QMainWindow):
     def open_depthCamera(self):
         if(self.colorTH.isRunning()):
             self.colorTH.changePixmap.disconnect()
+            self.colorTH.stop()
 
         self.shouldBeColor = False
         self.shouldBeDepth = True
@@ -265,12 +267,22 @@ class Window(QMainWindow):
             self.removeToolBar(self.cameraToolBar)
             self.haveToolBar = False
 
+        if(self.colorTH.isRunning()):
+            self.colorTH.changePixmap.disconnect()
+            self.colorTH.stop()
+
+        if(self.depthTH.isRunning()):
+            self.depthTH.changePixmap.disconnect()
+            self.depthTH.stop()
+
 class Thread(QThread):
     changePixmap = pyqtSignal(QImage)
 
     def __init__(self, parent=None):
         """Initializer."""
         super().__init__(parent)
+
+        self.running = True
         
         self.cameraValue = 0
 
@@ -290,7 +302,7 @@ class Thread(QThread):
                 sys.exit()
 
             try:
-                while True:
+                while self.running:
                     frames = self.pipeline.wait_for_frames()
                     color_frame = frames.get_color_frame()
 
@@ -325,7 +337,7 @@ class Thread(QThread):
                 sys.exit()
 
             try:
-                while True:
+                while self.running:
                     frames = self.pipeline.wait_for_frames()
                     depth_frame = frames.get_depth_frame()
 
@@ -348,6 +360,11 @@ class Thread(QThread):
 
             finally:
                 self.pipeline.stop()
+
+        def stop(self):
+            self.running = False
+            self.quit()
+            self.wait()
 
 
     def setCamera(self, value):
