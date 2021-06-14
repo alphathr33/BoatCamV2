@@ -1,5 +1,6 @@
 import sys
 import os
+
 import numpy as np
 import cv2
 from PyQt5 import sip
@@ -15,8 +16,6 @@ from PyQt5.QtCore import QTimer, QTime, Qt, QThread, pyqtSignal, pyqtSlot
 from PyQt5.QtGui import QColor, QFont, QPixmap, QImage
 from PyQt5.QtMultimedia import *
 from PyQt5.QtMultimediaWidgets import *
-
-#DID WE DO IT????
 
 class Window(QMainWindow):
     """Main Window."""
@@ -34,14 +33,11 @@ class Window(QMainWindow):
         self.haveCameraToolBar = False
         self.continueTimer = False
 
-        self.colorTH = Thread(self)
-        self.depthTH = Thread(self)
+        self.colorTH = CameraThread(self)
+        self.depthTH = CameraThread(self)
 
         self.shouldBeColor = False
         self.shouldBeDepth = False
-
-        #self.save_path = r"C:\Users\cie3\Desktop"
-        self.save_path = r"~/Desktop"
 
         #Creating a MenuBar
         self._createMenuBar()
@@ -179,7 +175,7 @@ class Window(QMainWindow):
         #ThirdButton.addAction()
         clockButton.clicked.connect(self._createClockWindow)
         #settingsButton.addAction()
-        updateButton.clicked.connect(self._updateSoftware)
+        updateButton.clicked.connect(self._updateSoftwareWindow)
 
         layout.addWidget(cameraButton, 0, 0)
         layout.addWidget(depthButton, 0, 2)
@@ -188,6 +184,29 @@ class Window(QMainWindow):
         layout.addWidget(settingsButton, 2, 0)
         layout.addWidget(updateButton, 2, 2)
         
+        self.horizontalGroupBox.setLayout(layout)
+        self.setCentralWidget(self.horizontalGroupBox)
+
+    def _updateSoftwareWindow(self):
+        self.horizontalGroupBox = QGroupBox()
+        layout = QGridLayout()
+
+        questionLabel = QLabel('Are you sure????????')
+        yesButton = QPushButton('Yes')
+        noButton = QPushButton('No')
+
+        questionLabel.setFont(QFont('Maax', 30))
+        yesButton.setFont(QFont('Maax', 30))
+        noButton.setFont(QFont('Maax', 30))
+
+        yesButton.clicked.connect(self._updateSoftware)
+        noButton.clicked.connect(self._createHomeWindow)
+        
+        questionLabel.setAlignment(Qt.AlignCenter)
+        layout.addWidget(questionLabel, 0, 0)
+        layout.addWidget(yesButton, 1, 0)
+        layout.addWidget(noButton, 2, 0)
+
         self.horizontalGroupBox.setLayout(layout)
         self.setCentralWidget(self.horizontalGroupBox)
 
@@ -204,7 +223,7 @@ class Window(QMainWindow):
         self.colorCamera_label = QLabel(self)
         self.depthCamera_label = QLabel(self)
         self.setCentralWidget(self.colorCamera_label)
-        self.colorTH = Thread(self)
+        self.colorTH = CameraThread(self)
         self.colorTH.setCamera(0)
         self.colorTH.changePixmap.connect(self.setImage)
         self.colorTH.start()
@@ -220,7 +239,7 @@ class Window(QMainWindow):
         self.colorCamera_label = QLabel(self)
         self.depthCamera_label = QLabel(self)
         self.setCentralWidget(self.depthCamera_label)
-        self.depthTH = Thread(self)
+        self.depthTH = CameraThread(self)
         self.depthTH.setCamera(1)
         self.depthTH.changePixmap.connect(self.setImage)
         self.depthTH.start()
@@ -243,21 +262,50 @@ class Window(QMainWindow):
   
         self.addToolBar(self.cameraToolBar)
   
-        click_action = QAction("Take Photo", self)
-  
-        click_action.setStatusTip("This will capture picture")
-  
-        click_action.setToolTip("Capture picture")
+        photo_action = QAction("Take Photo", self)
+        photo_action.setStatusTip("This will capture picture")
+        photo_action.setToolTip("Capture picture")
+        if(self.shouldBeColor):
+            photo_action.triggered.connect(self._takeColorPhoto)
+        else:
+            photo_action.triggered.connect(self._takeDepthPhoto)
 
-        click_action.triggered.connect(self.click_photo)
+        self.video_action = QAction("Record", self)
+        self.video_action.setStatusTip("This will record video")
+        self.video_action.setToolTip("Record")
+        if(self.shouldBeColor):
+            self.video_action.triggered.connect(self._takeColorVideo)
+        else:
+            self.video_action.triggered.connect(self._takeDepthVideo)
 
-        self.cameraToolBar.addAction(click_action)
+        self.cameraToolBar.addAction(photo_action)
+        self.cameraToolBar.addAction(self.video_action)
+        
+    def _takeColorPhoto(self):
+        self.colorTH.TakePhoto()
 
-    def click_photo(self):
-        self.capture = QCameraImageCapture(self.camera)
+    def _takeDepthPhoto(self):
+        self.depthTH.TakePhoto()
 
-        self.capture.capture(os.path.join(self.save_path, 'thing.jpg'))
+    def _takeColorVideo(self):
+        self.cameraToolBar.setStyleSheet("border: 3px solid red;")
+        self.video_action.triggered.connect(self._stopColorVideo)
+        self.colorTH.TakeVideo()
 
+    def _stopColorVideo(self):
+        self.cameraToolBar.setStyleSheet("border: solid white;")
+        self.video_action.triggered.connect(self._takeColorVideo)
+        self.colorTH.StopVideo()
+    
+    def _takeDepthVideo(self):
+        self.cameraToolBar.setStyleSheet("border: 3px solid red;")
+        self.video_action.triggered.connect(self._stopDepthVideo)
+        self.depthTH.TakeVideo()
+
+    def _stopDepthVideo(self):
+        self.cameraToolBar.setStyleSheet("border: solid white;")
+        self.video_action.triggered.connect(self._takeDepthVideo)
+        self.depthTH.StopVideo()
 
     def ExitStuff(self):
         if(not self.continueTimer):
@@ -276,16 +324,25 @@ class Window(QMainWindow):
             self.depthTH.changePixmap.disconnect()
             self.depthTH.stop()
 
-class Thread(QThread):
+class CameraThread(QThread):
     changePixmap = pyqtSignal(QImage)
 
     def __init__(self, parent=None):
         """Initializer."""
         super().__init__(parent)
 
+        self.save_path = r"C:\Users\cie3\Desktop"
+        #self.save_path = r"~/Desktop"
+
         self.running = True
+
+        self.color_image = None
+        self.depth_colormap = None
         
         self.cameraValue = 0
+        self.fourcc = cv2.VideoWriter_fourcc(*'MJPG')
+        self.recordThis = False
+        self.recorderSETUP = False
 
     def run(self):
         self.pipeline = rs.pipeline()
@@ -310,11 +367,18 @@ class Thread(QThread):
                     if not color_frame:
                         continue
 
-                    color_image = np.asanyarray(color_frame.get_data())
+                    self.color_image = np.asanyarray(color_frame.get_data())
 
-                    color_image = cv2.cvtColor(color_image, cv2.COLOR_BGR2RGB)
+                    color_image = cv2.cvtColor(self.color_image, cv2.COLOR_BGR2RGB)
 
                     h, w, ch = color_image.shape
+
+                    if(self.recordThis):
+                        if(self.recorderSETUP):
+                            self.videoRecorder.write(self.color_image)
+                        else:
+                            self.setupVideoRecorder(h, w)
+
                     bytesPerLine = ch * w
                     convertToQtFormat = QImage(color_image.data, w, h, bytesPerLine, QImage.Format_RGB888)
                     p = convertToQtFormat.scaled(800, 480)
@@ -347,10 +411,17 @@ class Thread(QThread):
 
                     depth_image = np.asanyarray(depth_frame.get_data())
 
-                    depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.03), cv2.COLORMAP_JET)
-                    depth_colormap = cv2.cvtColor(depth_colormap, cv2.COLOR_BGR2RGB)
+                    self.depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.03), cv2.COLORMAP_JET)
+                    depth_colormap = cv2.cvtColor(self.depth_colormap, cv2.COLOR_BGR2RGB)
 
                     h, w, ch = depth_colormap.shape
+
+                    if(self.recordThis):
+                        if(self.recorderSETUP):
+                            self.videoRecorder.write(self.depth_colormap)
+                        else:
+                            self.setupVideoRecorder(h, w)
+
                     bytesPerLine = ch * w
                     convertToQtFormat = QImage(depth_colormap.data, w, h, bytesPerLine, QImage.Format_RGB888)
                     p = convertToQtFormat.scaled(800, 480)
@@ -361,6 +432,27 @@ class Thread(QThread):
 
             finally:
                 self.pipeline.stop()
+
+    def TakePhoto(self):
+        if(self.cameraValue == 0):
+            cv2.imwrite(os.path.join(self.save_path, 'thing.jpg'), self.color_image)
+        else:
+            cv2.imwrite(os.path.join(self.save_path, 'thing.jpg'), self.depth_colormap)
+
+    def setupVideoRecorder(self, h, w):
+        if(self.cameraValue == 0):
+            self.videoRecorder = cv2.VideoWriter(os.path.join(self.save_path, 'thing.avi'), self.fourcc, 30, (w, h))
+        else:
+            self.videoRecorder = cv2.VideoWriter(os.path.join(self.save_path, 'thing.avi'), self.fourcc, 30, (w, h))
+
+        self.recorderSETUP = True
+
+    def TakeVideo(self):
+        self.recordThis = True
+
+    def StopVideo(self):
+        self.recordThis = False
+        self.videoRecorder.release()
 
     def setCamera(self, value):
         self.cameraValue = value
