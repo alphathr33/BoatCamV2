@@ -288,22 +288,22 @@ class Window(QMainWindow):
         self.depthTH.TakePhoto()
 
     def _takeColorVideo(self):
-        self.cameraToolBar.setStyleSheet("border: 3px solid red;")
+        self.colorCamera_label.setStyleSheet("border: 5px solid red;")
         self.video_action.triggered.connect(self._stopColorVideo)
         self.colorTH.TakeVideo()
 
     def _stopColorVideo(self):
-        self.cameraToolBar.setStyleSheet("border: solid white;")
+        self.colorCamera_label.setStyleSheet("border: solid white;")
         self.video_action.triggered.connect(self._takeColorVideo)
         self.colorTH.StopVideo()
     
     def _takeDepthVideo(self):
-        self.cameraToolBar.setStyleSheet("border: 3px solid red;")
+        self.depthCamera_label.setStyleSheet("border: 5px solid red;")
         self.video_action.triggered.connect(self._stopDepthVideo)
         self.depthTH.TakeVideo()
 
     def _stopDepthVideo(self):
-        self.cameraToolBar.setStyleSheet("border: solid white;")
+        self.depthCamera_label.setStyleSheet("border: solid white;")
         self.video_action.triggered.connect(self._takeDepthVideo)
         self.depthTH.StopVideo()
 
