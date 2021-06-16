@@ -11,7 +11,7 @@ from PyQt5.QtWidgets import (QAction, QApplication, QGridLayout,
                              QGroupBox, QLCDNumber, QLabel, 
                              QLabel, QMainWindow, QMenu, 
                              QMenuBar, QPushButton, QVBoxLayout,  QWidget,
-                             QToolBar)
+                             QToolBar, QSlider)
 from PyQt5.QtCore import QTimer, QTime, Qt, QThread, pyqtSignal, pyqtSlot
 from PyQt5.QtGui import QColor, QFont, QPixmap, QImage
 from PyQt5.QtMultimedia import *
@@ -136,7 +136,73 @@ class Window(QMainWindow):
         self.continueTimer = True
 
         self.ExitStuff()
+
+    def _createSettingsWindow(self):
+        self.horizontalGroupBox = QGroupBox()
+        layout = QGridLayout()
         
+        gimbalButton = QPushButton('Gimbal')
+        imageProcessingButton = QPushButton('Image Processing')
+
+        gimbalButton.setFont(QFont('Maax', 50))
+        imageProcessingButton.setFont(QFont('Maax', 50))
+
+        gimbalButton.clicked.connect(self._createGimbalSettingWindow)
+        imageProcessingButton.clicked.connect(self._createImageProcessingWindow)
+
+        layout.addWidget(gimbalButton, 0, 0)
+        layout.addWidget(imageProcessingButton, 1, 0)
+
+        self.horizontalGroupBox.setLayout(layout)
+        self.setCentralWidget(self.horizontalGroupBox)
+
+    def _createGimbalSettingWindow(self):
+        print('did it')
+
+    def _createImageProcessingWindow(self):
+        self.horizontalGroupBox = QGroupBox()
+        layout = QGridLayout()
+
+        gridSizeSlider = QSlider(Qt.Vertical)
+        gridSizeSlider.setMinimum(1)
+        gridSizeSlider.setMaximum(20)
+        gridSizeSlider.setValue(10)
+
+        depthSlider = QSlider(Qt.Vertical)
+        depthSlider.setMinimum(1)
+        depthSlider.setMaximum(10)
+        depthSlider.setValue(2)
+
+        thresholdOneSlider = QSlider(Qt.Vertical)
+        thresholdOneSlider.setMinimum(0)
+        thresholdOneSlider.setMaximum(200)
+        thresholdOneSlider.setValue(80)
+
+        thresholdTwoSlider = QSlider(Qt.Vertical)
+        thresholdTwoSlider.setMinimum(thresholdOneSlider.value())
+        thresholdTwoSlider.setMaximum(200)
+        thresholdTwoSlider.setValue(120)
+
+        self.shouldBeColor = False
+        self.shouldBeDepth = True
+        self.imageProcessing_label = QLabel(self)
+
+        layout.addWidget(depthSlider, 0, 0)
+        layout.addWidget(gridSizeSlider, 0, 1)
+        layout.addWidget(thresholdOneSlider, 0, 2)
+        layout.addWidget(thresholdTwoSlider, 0, 3)
+        layout.addWidget(self.imageProcessing_label, 0, 4)
+
+        self.horizontalGroupBox.setLayout(layout)
+        self.setCentralWidget(self.horizontalGroupBox)
+
+        self.colorCamera_label = QLabel(self)
+        self.depthCamera_label = QLabel(self)
+        self.IP_TH = CameraThread(self)
+        self.IP_TH.setCamera(1)
+        self.IP_TH.changePixmap.connect(self.setImage)
+        self.IP_TH.start()
+        self.show()
 
     def Time(self):
         current_time = QTime.currentTime()
@@ -172,9 +238,9 @@ class Window(QMainWindow):
 
         cameraButton.clicked.connect(self._createCameraWindow)
         depthButton.clicked.connect(self._createDepthCameraWindow)
-        #ThirdButton.addAction()
+        #ThirdButton.clicked.connect()
         clockButton.clicked.connect(self._createClockWindow)
-        #settingsButton.addAction()
+        settingsButton.clicked.connect(self._createSettingsWindow)
         updateButton.clicked.connect(self._updateSoftwareWindow)
 
         layout.addWidget(cameraButton, 0, 0)
@@ -254,6 +320,10 @@ class Window(QMainWindow):
         if not sip.isdeleted(self.depthCamera_label):
             if(self.shouldBeDepth):
                 self.depthCamera_label.setPixmap(QPixmap.fromImage(image))
+
+        if not sip.isdeleted(self.imageProcessing_label):
+            if(self.shouldBeDepth):
+                self.imageProcessing_label.setPixmap(QPixmap.fromImage(image))
 
     def createCameraButtons(self):
         self.haveCameraToolBar = True
@@ -456,6 +526,13 @@ class CameraThread(QThread):
 
     def setCamera(self, value):
         self.cameraValue = value
+
+    def createEdgeimage(self, image, gridSize, threshold1, threshold2):
+        blur = cv2.blur(image, (gridSize, gridSize))
+
+        processedImage = cv2.Canny(blur, threshold1, threshold2)
+
+        return(processedImage)
 
     def stop(self):
         self.running = False
