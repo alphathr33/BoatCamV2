@@ -290,6 +290,7 @@ class Window(QMainWindow):
         self.shouldBeDepth = False
         self.colorCamera_label = QLabel(self)
         self.depthCamera_label = QLabel(self)
+        self.imageProcessing_label = QLabel(self)
         self.setCentralWidget(self.colorCamera_label)
         self.colorTH = CameraThread('noChange')
         self.colorTH.setCamera(0)
@@ -306,6 +307,7 @@ class Window(QMainWindow):
         self.shouldBeDepth = True
         self.colorCamera_label = QLabel(self)
         self.depthCamera_label = QLabel(self)
+        self.imageProcessing_label = QLabel(self)
         self.setCentralWidget(self.depthCamera_label)
         self.depthTH = CameraThread('noChange')
         self.depthTH.setCamera(1)
@@ -460,7 +462,10 @@ class CameraThread(QThread):
                             self.setupVideoRecorder(h, w)
 
                     bytesPerLine = ch * w
-                    convertToQtFormat = QImage(color_image.data, w, h, bytesPerLine, QImage.Format_RGB888)
+                    if(ch == 1):
+                        convertToQtFormat = QImage(color_image.data, w, h, bytesPerLine, QImage.Format_Grayscale8)
+                    else:
+                        convertToQtFormat = QImage(color_image.data, w, h, bytesPerLine, QImage.Format_RGB888)
                     p = convertToQtFormat.scaled(800, 480)
                     self.changePixmap.emit(p)
 
@@ -494,7 +499,6 @@ class CameraThread(QThread):
                     self.depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.03), cv2.COLORMAP_JET)
                     self.processedImage.setImage(self.depth_colormap)
                     depth_colormap = self.processedImage.getImage()
-                    print(depth_colormap.shape)
 
                     try:
                         h, w, ch = depth_colormap.shape
@@ -509,8 +513,10 @@ class CameraThread(QThread):
                             self.setupVideoRecorder(h, w)
 
                     bytesPerLine = ch * w
-                    print(bytesPerLine)
-                    convertToQtFormat = QImage(depth_colormap.data, w, h, bytesPerLine, QImage.Format_Grayscale8)
+                    if(ch == 1):
+                        convertToQtFormat = QImage(depth_colormap.data, w, h, bytesPerLine, QImage.Format_Grayscale8)
+                    else:
+                        convertToQtFormat = QImage(depth_colormap.data, w, h, bytesPerLine, QImage.Format_RGB888)
                     p = convertToQtFormat.scaled(800, 480)
                     self.changePixmap.emit(p)
 

@@ -37,7 +37,7 @@ class BoatImageProcessing:
     def noChange(self, image):
         return(image)
             
-    def toBlurImage(self, image, ksize = (10,10)):
+    def toBlurImage(self, image, ksize = (5,5)):
         blurred = cv2.blur(image, ksize)
 
         return(blurred)
@@ -47,7 +47,7 @@ class BoatImageProcessing:
 
         return(grey)
 
-    def toCannyEdge(self, image, threshold1=80, threshold2=120):
+    def toCannyEdge(self, image, threshold1=60, threshold2=120):
         grey = self.toGreyImage(image)
         blur = self.toBlurImage(grey)
         if(threshold2 >= threshold1):
@@ -55,5 +55,4 @@ class BoatImageProcessing:
         else:
             cannyEdge = cv2.Canny(blur, threshold2, threshold1)
 
-        print('getting here')
         return(cannyEdge)
