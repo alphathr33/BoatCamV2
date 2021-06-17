@@ -49,7 +49,7 @@ class BoatImageProcessing:
 
     def toCannyEdge(self, image, threshold1=0, threshold2=0):
         grey = self.toGreyImage(image)
-        if(threshold1 = 0 and threshold2 = 0):
+        if(threshold1 == 0 and threshold2 == 0):
             med = np.median(grey)
             sigma = 0.33
 
