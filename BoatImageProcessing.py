@@ -1,0 +1,59 @@
+import cv2
+import pyrealsense2 as rs
+
+class BoatImageProcessing:
+    def __init__(self, isColor, finishedProduct):
+        super().__init__()
+
+        self.isColor = isColor
+        self.finalImage = None
+        self.finishedProduct = finishedProduct
+
+        self.functionList = {
+            'noChange' : self.noChange,
+            'blur' : self.toBlurImage,
+            'grey' : self.toGreyImage,
+            'cannyEdge' : self.toCannyEdge
+        }
+
+
+    def setImage(self, image):
+        self.image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        self.processImage()
+
+    def getImage(self):
+        try:
+            return(self.finalImage)
+        except:
+            return(self.image)
+
+    def processImage(self):
+        try:
+            self.finalImage = self.functionList[self.finishedProduct](self.image)
+
+        except KeyError:
+            print('Cant process image like that')
+
+    def noChange(self, image):
+        return(image)
+            
+    def toBlurImage(self, image, ksize = (10,10)):
+        blurred = cv2.blur(image, ksize)
+
+        return(blurred)
+
+    def toGreyImage(self, image):
+        grey = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+
+        return(grey)
+
+    def toCannyEdge(self, image, threshold1=80, threshold2=120):
+        grey = self.toGreyImage(image)
+        blur = self.toBlurImage(grey)
+        if(threshold2 >= threshold1):
+            cannyEdge = cv2.Canny(blur, threshold1, threshold2)
+        else:
+            cannyEdge = cv2.Canny(blur, threshold2, threshold1)
+
+        print('getting here')
+        return(cannyEdge)
