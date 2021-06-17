@@ -35,8 +35,7 @@ class Window(QMainWindow):
         self.haveCameraToolBar = False
         self.continueTimer = False
 
-        self.colorTH = CameraThread(self)
-        self.depthTH = CameraThread(self)
+        self._createCameraThreads()
 
         self.shouldBeColor = False
         self.shouldBeDepth = False
@@ -80,6 +79,25 @@ class Window(QMainWindow):
         self.clockAction.triggered.connect(lambda: self._createClockWindow())
         self.updateAction = QAction('&Update')
         self.updateAction.triggered.connect(lambda: self._updateSoftware())
+
+    def _createCameraThreads(self):
+        self.colorTH = CameraThread()
+        self.depthTH = CameraThread()
+        self.IP_TH = CameraThread('cannyEdge')
+
+    def _disconnectCameraThreads(self):
+        if(self.colorTH.isRunning()):
+            self.colorTH.changePixmap.disconnect()
+            self.colorTH.stop()
+
+        if(self.depthTH.isRunning()):
+            self.depthTH.changePixmap.disconnect()
+            self.depthTH.stop()
+
+        if(self.IP_TH.isRunning()):
+            self.IP_TH.changePixmap.disconnect()
+            self.IP_TH.stop()
+
 
     def _createHomeWindow(self):
         self.setWindowTitle("Home Window")
@@ -198,9 +216,10 @@ class Window(QMainWindow):
         self.horizontalGroupBox.setLayout(layout)
         self.setCentralWidget(self.horizontalGroupBox)
 
+        self._disconnectCameraThreads()
+
         self.colorCamera_label = QLabel(self)
         self.depthCamera_label = QLabel(self)
-        self.IP_TH = CameraThread('cannyEdge')
         self.IP_TH.setCamera(1)
         self.IP_TH.changePixmap.connect(self.setImage)
         self.IP_TH.start()
@@ -282,9 +301,7 @@ class Window(QMainWindow):
         os.system("xterm -hold -e ./update.sh")
 
     def open_colorCamera(self):
-        if(self.depthTH.isRunning()):
-            self.depthTH.changePixmap.disconnect()
-            self.depthTH.stop()
+        self._disconnectCameraThreads()
 
         self.shouldBeColor = True
         self.shouldBeDepth = False
@@ -292,16 +309,13 @@ class Window(QMainWindow):
         self.depthCamera_label = QLabel(self)
         self.imageProcessing_label = QLabel(self)
         self.setCentralWidget(self.colorCamera_label)
-        self.colorTH = CameraThread('noChange')
         self.colorTH.setCamera(0)
         self.colorTH.changePixmap.connect(self.setImage)
         self.colorTH.start()
         self.show()
 
     def open_depthCamera(self):
-        if(self.colorTH.isRunning()):
-            self.colorTH.changePixmap.disconnect()
-            self.colorTH.stop()
+        self._disconnectCameraThreads()
 
         self.shouldBeColor = False
         self.shouldBeDepth = True
@@ -309,7 +323,6 @@ class Window(QMainWindow):
         self.depthCamera_label = QLabel(self)
         self.imageProcessing_label = QLabel(self)
         self.setCentralWidget(self.depthCamera_label)
-        self.depthTH = CameraThread('noChange')
         self.depthTH.setCamera(1)
         self.depthTH.changePixmap.connect(self.setImage)
         self.depthTH.start()
@@ -401,7 +414,7 @@ class Window(QMainWindow):
 class CameraThread(QThread):
     changePixmap = pyqtSignal(QImage)
 
-    def __init__(self, finishedProduct, parent=None):
+    def __init__(self, finishedProduct='noChange', parent=None):
         """Initializer."""
         super(QThread, self).__init__()
 
