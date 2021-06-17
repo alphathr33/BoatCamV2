@@ -47,8 +47,14 @@ class BoatImageProcessing:
 
         return(grey)
 
-    def toCannyEdge(self, image, threshold1=60, threshold2=120):
+    def toCannyEdge(self, image, threshold1=0, threshold2=0):
         grey = self.toGreyImage(image)
+        if(threshold1 = 0 and threshold2 = 0):
+            med = np.median(grey)
+            sigma = 0.33
+
+            threshold1 = int(max(0, (1 - sigma) * med))
+            threshold2 = int(min(255, (1 + sigma) * med))
         blur = self.toBlurImage(grey)
         if(threshold2 >= threshold1):
             cannyEdge = cv2.Canny(blur, threshold1, threshold2)
