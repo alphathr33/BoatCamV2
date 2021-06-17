@@ -7,6 +7,7 @@ import numpy as np
 import cv2
 from PyQt5 import sip
 import pyrealsense2.pyrealsense2 as rs
+from qtrangeslider import QRangeSlider
 
 from PyQt5.QtCore import Qt, QRect
 from PyQt5.QtWidgets import (QAction, QApplication, QGridLayout,
@@ -188,20 +189,11 @@ class Window(QMainWindow):
         gridSizeSlider.setMaximum(20)
         gridSizeSlider.setValue(10)
 
-        depthSlider = QSlider(Qt.Vertical)
-        depthSlider.setMinimum(1)
-        depthSlider.setMaximum(10)
-        depthSlider.setValue(2)
+        depthSlider = QRangeSlider()
+        depthSlider.setValue([0, 0, 5, 10])
 
-        thresholdOneSlider = QSlider(Qt.Vertical)
-        thresholdOneSlider.setMinimum(0)
-        thresholdOneSlider.setMaximum(200)
-        thresholdOneSlider.setValue(80)
-
-        thresholdTwoSlider = QSlider(Qt.Vertical)
-        thresholdTwoSlider.setMinimum(thresholdOneSlider.value())
-        thresholdTwoSlider.setMaximum(200)
-        thresholdTwoSlider.setValue(120)
+        thresholdSlider = QRangeSlider()
+        thresholdSlider.setValue([0, 60, 120, 200])
 
         self.shouldBeColor = False
         self.shouldBeDepth = True
@@ -209,9 +201,8 @@ class Window(QMainWindow):
 
         layout.addWidget(depthSlider, 0, 0)
         layout.addWidget(gridSizeSlider, 0, 1)
-        layout.addWidget(thresholdOneSlider, 0, 2)
-        layout.addWidget(thresholdTwoSlider, 0, 3)
-        layout.addWidget(self.imageProcessing_label, 0, 4)
+        layout.addWidget(thresholdSlider, 0, 2)
+        layout.addWidget(self.imageProcessing_label, 0, 3)
 
         self.horizontalGroupBox.setLayout(layout)
         self.setCentralWidget(self.horizontalGroupBox)
@@ -224,6 +215,15 @@ class Window(QMainWindow):
         self.IP_TH.setCamera(1)
         self.IP_TH.changePixmap.connect(self.setImage)
         self.IP_TH.start()
+
+        processedImage = self.IP_TH.getProcessedImage()
+        print(type(processedImage))
+        depthSlider.valueChanged.connect(lambda: processedImage.setDepthClose(depthSlider.value()[1]))
+        depthSlider.valueChanged.connect(lambda: processedImage.setDepthFar(depthSlider.value()[2]))
+        gridSizeSlider.valueChanged.connect(lambda: processedImage.setKSize(gridSizeSlider.value()))
+        thresholdSlider.valueChanged.connect(lambda: processedImage.setThreshold1(thresholdSlider.value()[1]))
+        thresholdSlider.valueChanged.connect(lambda: processedImage.setThreshold2(thresholdSlider.value()[2]))
+
         self.show()
 
     def Time(self):
@@ -427,6 +427,7 @@ class CameraThread(QThread):
         self.recorderSETUP = False
 
         self.finishedProduct = finishedProduct
+        self.processedImage = BIP.BoatImageProcessing(self.finishedProduct)
 
     def run(self):
         self.pipeline = rs.pipeline()
@@ -434,7 +435,7 @@ class CameraThread(QThread):
 
         if(self.cameraValue == 0):
             self.config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
-            self.processedImage = BIP.BoatImageProcessing(True, self.finishedProduct)
+            self.processedImage.setIsColor(True)
 
             self.isEnabled = True
             
@@ -485,7 +486,7 @@ class CameraThread(QThread):
 
         elif(self.cameraValue == 1):
             self.config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
-            self.processedImage = BIP.BoatImageProcessing(False, self.finishedProduct)
+            self.processedImage.setIsColor(False)
             self.isEnabled = True
 
             try:
@@ -557,6 +558,9 @@ class CameraThread(QThread):
 
     def setCamera(self, value):
         self.cameraValue = value
+
+    def getProcessedImage(self):
+        return(self.processedImage)
 
     def stop(self):
         self.running = False
